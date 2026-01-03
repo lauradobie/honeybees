@@ -1,3 +1,11 @@
+console.log("main.js loaded ✅");
+
+d3.select("#viz").append("div")
+  .style("padding", "12px")
+  .style("border", "1px dashed #999")
+  .text("JS is running ✅ (if you see this, rendering is next)");
+
+
 const scroller = scrollama();
 
 let metrics = [];
