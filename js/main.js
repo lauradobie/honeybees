@@ -1,59 +1,86 @@
-console.log("main.js loaded ✅");
-
-d3.select("#viz").append("div")
-  .style("padding", "12px")
-  .style("border", "1px dashed #999")
-  .text("JS is running ✅ (if you see this, rendering is next)");
-
-
-const scroller = scrollama();
+// ==========================
+// Editorial pinned chart baseline (robust)
+// ==========================
 
 let metrics = [];
-let stressors = [];
 
-// Basic SVG setup
+// DOM
+const levelSelect = document.getElementById("levelSelect");
+const metricSelect = document.getElementById("metricSelect");
+
+// SVG setup
 const container = d3.select("#viz");
-const width = () => container.node().clientWidth;
-const height = () => container.node().clientHeight;
-
 const svg = container.append("svg");
 const g = svg.append("g");
 
-function resize() {
-  svg.attr("width", width()).attr("height", height());
+function setCaption(t) {
+  document.getElementById("caption").textContent = t;
+}
+
+function size() {
+  const w = container.node().clientWidth || 800;
+  const h = container.node().clientHeight || 500;
+  svg.attr("width", w).attr("height", h);
+  return { w, h };
 }
 
 window.addEventListener("resize", () => {
-  resize();
-  scroller.resize();
+  renderCurrent();
 });
 
-function setCaption(text) {
-  d3.select("#caption").text(text);
+// Clean/normalize one row
+function cleanRow(d) {
+  return {
+    level: (d.level ?? "").toString().trim().toLowerCase(),
+    metric: (d.metric ?? "").toString().trim().toLowerCase(),
+    region: (d.region ?? "").toString().trim(),
+    period: (d.period ?? "").toString().trim(),
+    period_index: Number(d.period_index),
+    value: Number(d.value),
+  };
 }
 
-// Helper: get national rows for a metric
-function getNational(metricName) {
+function unique(arr) {
+  return Array.from(new Set(arr)).filter(Boolean);
+}
+
+function getSeries(level, metric) {
   return metrics
-    .filter(d => d.level === "national" && d.metric === metricName)
-    .filter(d => d.value !== null && d.value !== undefined && !Number.isNaN(+d.value))
-    .sort((a,b) => a.period_index - b.period_index)
-    .map(d => ({...d, value: +d.value}));
+    .filter(d => d.level === level && d.metric === metric)
+    .filter(d => Number.isFinite(d.period_index) && Number.isFinite(d.value))
+    .sort((a, b) => a.period_index - b.period_index);
 }
 
 function clearViz() {
   g.selectAll("*").remove();
 }
 
-// Simple line chart renderer
+// Nice label for metric strings
+function prettyMetric(m) {
+  // convert snake_case → Title Case-ish
+  return (m || "")
+    .toString()
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// Render a line chart
 function renderLine(series, title) {
-  resize();
+  const { w, h } = size();
   clearViz();
 
-  const W = width(), H = height();
-  const margin = {top: 30, right: 20, bottom: 35, left: 55};
-  const iw = W - margin.left - margin.right;
-  const ih = H - margin.top - margin.bottom;
+  if (!series || series.length === 0) {
+    g.append("text")
+      .attr("x", 16)
+      .attr("y", 28)
+      .attr("font-size", 14)
+      .text("No data found for this view. (Metric/level mismatch)");
+    return;
+  }
+
+  const margin = { top: 38, right: 18, bottom: 36, left: 60 };
+  const iw = w - margin.left - margin.right;
+  const ih = h - margin.top - margin.bottom;
 
   const gg = g.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
@@ -65,8 +92,12 @@ function renderLine(series, title) {
     .domain(d3.extent(series, d => d.value)).nice()
     .range([ih, 0]);
 
-  gg.append("g").attr("transform", `translate(0,${ih})`).call(d3.axisBottom(x).ticks(6));
-  gg.append("g").call(d3.axisLeft(y).ticks(6));
+  gg.append("g")
+    .attr("transform", `translate(0,${ih})`)
+    .call(d3.axisBottom(x).ticks(6));
+
+  gg.append("g")
+    .call(d3.axisLeft(y).ticks(6));
 
   gg.append("path")
     .datum(series)
@@ -80,72 +111,90 @@ function renderLine(series, title) {
 
   gg.append("text")
     .attr("x", 0)
-    .attr("y", -10)
+    .attr("y", -14)
     .attr("font-weight", 700)
     .text(title);
 }
 
-async function init() {
-  metrics = await d3.json("data/metrics_long.json");
-  stressors = await d3.json("data/stressors_long.json");
+// Populate selects based on data
+function mountSelectors(levels) {
+  // Level select
+  levelSelect.innerHTML = "";
+  levels.forEach(l => {
+    const opt = document.createElement("option");
+    opt.value = l;
+    opt.textContent = l;
+    levelSelect.appendChild(opt);
+  });
 
-// ---- DEBUG: show what we actually loaded ----
-const levels = Array.from(new Set(metrics.map(d => (d.level ?? "").toString().trim()))).slice(0, 10);
-const metricsNames = Array.from(new Set(metrics.map(d => (d.metric ?? "").toString().trim()))).slice(0, 15);
+  // default to national if present
+  const defaultLevel = levels.includes("national") ? "national" : levels[0];
+  levelSelect.value = defaultLevel;
 
-d3.select("#viz")
-  .append("div")
-  .attr("id", "data-debug")
-  .style("padding", "10px")
-  .style("margin", "10px 0")
-  .style("border", "1px solid #ddd")
-  .style("font-size", "12px")
-  .style("line-height", "1.3")
-  .html(
-    `<strong>Data loaded ✅</strong><br/>
-     rows: ${metrics.length}<br/>
-     sample level values: ${levels.join(", ")}<br/>
-     sample metric values: ${metricsNames.join(", ")}`
-  );
+  // Metric select will be populated based on level
+  levelSelect.addEventListener("change", () => {
+    populateMetricSelect(levelSelect.value);
+    renderCurrent();
+  });
 
-  
+  metricSelect.addEventListener("change", () => {
+    renderCurrent();
+  });
 
-  // Scrollama wiring
-  scroller
-    .setup({
-      step: ".step",
-      offset: 0.6,
-    })
-    .onStepEnter(response => {
-      d3.selectAll(".step").classed("is-active", false);
-      d3.select(response.element).classed("is-active", true);
-
-      const step = +response.element.dataset.step;
-
-      if (step === 0) {
-        renderLine(getNational("quarter_start_colonies"), "National: Quarter start colonies (seasonal)");
-        setCaption("Quarterly starting colony counts show seasonal rhythm across years.");
-      }
-
-      if (step === 1) {
-        renderLine(getNational("gross_turnover"), "National: Gross turnover (lost + added + renovated)");
-        setCaption("Turnover shows how much movement exists even when totals look stable.");
-      }
-
-      if (step === 2) {
-        renderLine(getNational("intervention_to_loss"), "National: Intervention-to-loss ratio");
-        setCaption("If this rises over time, it suggests more effort is required to offset losses.");
-      }
-
-      if (step === 3) {
-        renderLine(getNational("ccd_share_of_loss"), "National: CCD share of losses");
-        setCaption("CCD is tracked separately; this shows its share of total losses over time.");
-      }
-    });
-
-  // render first view
-  renderLine(getNational("quarter_start_colonies"), "National: Quarter start colonies (seasonal)");
-  setCaption("Quarterly starting colony counts show seasonal rhythm across years.");
+  populateMetricSelect(defaultLevel);
 }
 
-init();
+function populateMetricSelect(level) {
+  const metricsForLevel = unique(
+    metrics.filter(d => d.level === level).map(d => d.metric)
+  ).sort();
+
+  metricSelect.innerHTML = "";
+  metricsForLevel.forEach(m => {
+    const opt = document.createElement("option");
+    opt.value = m;
+    opt.textContent = prettyMetric(m);
+    metricSelect.appendChild(opt);
+  });
+
+  // pick a sensible default if present
+  const preferred = ["quarter_start_colonies", "gross_turnover", "intervention_to_loss", "lost_per_100_start", "loss_pct"];
+  const found = preferred.find(p => metricsForLevel.includes(p));
+  metricSelect.value = found || metricsForLevel[0] || "";
+}
+
+function renderCurrent() {
+  const level = (levelSelect.value || "").toLowerCase();
+  const metric = (metricSelect.value || "").toLowerCase();
+
+  const series = getSeries(level, metric);
+  renderLine(series, `${level.toUpperCase()}: ${prettyMetric(metric)}`);
+  setCaption(`Showing ${series.length} points for ${level} / ${prettyMetric(metric)}.`);
+}
+
+// Init
+async function init() {
+  const raw = await d3.json("data/metrics_long.json");
+  metrics = raw.map(cleanRow);
+
+  const levels = unique(metrics.map(d => d.level));
+  if (!levels.length) {
+    setCaption("No level values found in data.");
+    return;
+  }
+
+  mountSelectors(levels);
+  renderCurrent();
+
+  setCaption(`Loaded ${metrics.length} rows. Use the dropdowns to explore.`);
+}
+
+init().catch(err => {
+  console.error(err);
+  d3.select("#viz").append("pre")
+    .style("white-space", "pre-wrap")
+    .style("padding", "12px")
+    .style("border", "1px solid #f99")
+    .text("Visualization error:\n\n" + (err?.stack || err));
+  setCaption("A visualization error occurred. Open the console for details.");
+});
