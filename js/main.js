@@ -1,5 +1,5 @@
 // ==========================
-// Editorial pinned chart baseline (robust)
+// Editorial pinned chart baseline (robust + safe numeric parsing)
 // ==========================
 
 let metrics = [];
@@ -24,9 +24,29 @@ function size() {
   return { w, h };
 }
 
-window.addEventListener("resize", () => {
-  renderCurrent();
-});
+window.addEventListener("resize", () => renderCurrent());
+
+// --- helpers ---
+function unique(arr) {
+  return Array.from(new Set(arr)).filter(Boolean);
+}
+
+function prettyMetric(m) {
+  return (m || "")
+    .toString()
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// IMPORTANT: do NOT turn blanks into 0.
+// Number("") -> 0 (bad). We want NaN so it gets filtered out.
+function toNumberOrNaN(v) {
+  if (v === null || v === undefined) return NaN;
+  const s = String(v).trim();
+  if (s === "" || s.toLowerCase() === "na" || s.toLowerCase() === "nan") return NaN;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : NaN;
+}
 
 // Clean/normalize one row
 function cleanRow(d) {
@@ -35,13 +55,9 @@ function cleanRow(d) {
     metric: (d.metric ?? "").toString().trim().toLowerCase(),
     region: (d.region ?? "").toString().trim(),
     period: (d.period ?? "").toString().trim(),
-    period_index: Number(d.period_index),
-    value: Number(d.value),
+    period_index: toNumberOrNaN(d.period_index),
+    value: toNumberOrNaN(d.value),
   };
-}
-
-function unique(arr) {
-  return Array.from(new Set(arr)).filter(Boolean);
 }
 
 function getSeries(level, metric) {
@@ -55,13 +71,6 @@ function clearViz() {
   g.selectAll("*").remove();
 }
 
-function prettyMetric(m) {
-  return (m || "")
-    .toString()
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, c => c.toUpperCase());
-}
-
 // Render a line chart
 function renderLine(series, title) {
   const { w, h } = size();
@@ -72,24 +81,30 @@ function renderLine(series, title) {
       .attr("x", 16)
       .attr("y", 28)
       .attr("font-size", 14)
-      .text("No data found for this view.");
+      .text("No valid numeric data found for this view.");
     return;
   }
 
-  const margin = { top: 38, right: 18, bottom: 36, left: 60 };
+  const margin = { top: 40, right: 18, bottom: 36, left: 60 };
   const iw = w - margin.left - margin.right;
   const ih = h - margin.top - margin.bottom;
 
   const gg = g.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
-  const x = d3.scaleLinear()
-    .domain(d3.extent(series, d => d.period_index))
-    .range([0, iw]);
+  const xDomain = d3.extent(series, d => d.period_index);
+  let yDomain = d3.extent(series, d => d.value);
 
-  const y = d3.scaleLinear()
-    .domain(d3.extent(series, d => d.value)).nice()
-    .range([ih, 0]);
+  // If all y values are identical, expand domain so the line is visible.
+  if (yDomain[0] === yDomain[1]) {
+    const v = yDomain[0];
+    const pad = (v === 0) ? 1 : Math.abs(v) * 0.05;
+    yDomain = [v - pad, v + pad];
+  }
 
+  const x = d3.scaleLinear().domain(xDomain).range([0, iw]);
+  const y = d3.scaleLinear().domain(yDomain).nice().range([ih, 0]);
+
+  // Axes
   gg.append("g")
     .attr("transform", `translate(0,${ih})`)
     .call(d3.axisBottom(x).ticks(6));
@@ -97,6 +112,7 @@ function renderLine(series, title) {
   gg.append("g")
     .call(d3.axisLeft(y).ticks(6));
 
+  // Line (draw AFTER axes so it sits on top)
   gg.append("path")
     .datum(series)
     .attr("fill", "none")
@@ -107,6 +123,16 @@ function renderLine(series, title) {
       .y(d => y(d.value))
     );
 
+  // Optional: dots (helps confirm visibility)
+  gg.selectAll("circle")
+    .data(series)
+    .enter()
+    .append("circle")
+    .attr("r", 2)
+    .attr("cx", d => x(d.period_index))
+    .attr("cy", d => y(d.value));
+
+  // Title
   gg.append("text")
     .attr("x", 0)
     .attr("y", -14)
@@ -114,7 +140,7 @@ function renderLine(series, title) {
     .text(title);
 }
 
-// Populate selects based on data
+// Populate selectors
 function mountSelectors(levels) {
   levelSelect.innerHTML = "";
   levels.forEach(l => {
@@ -132,9 +158,7 @@ function mountSelectors(levels) {
     renderCurrent();
   });
 
-  metricSelect.addEventListener("change", () => {
-    renderCurrent();
-  });
+  metricSelect.addEventListener("change", renderCurrent);
 
   populateMetricSelect(defaultLevel);
 }
@@ -155,9 +179,12 @@ function populateMetricSelect(level) {
   const preferred = [
     "quarter_start_colonies",
     "gross_turnover",
-    "intervention_to_loss",
+    "colonies_lost",
+    "colonies_added",
+    "colonies_renovated",
+    "loss_pct",
     "lost_per_100_start",
-    "loss_pct"
+    "intervention_to_loss",
   ];
   const found = preferred.find(p => metricsForLevel.includes(p));
   metricSelect.value = found || metricsForLevel[0] || "";
@@ -168,13 +195,16 @@ function renderCurrent() {
   const metric = (metricSelect.value || "").toLowerCase();
 
   const series = getSeries(level, metric);
+
   renderLine(series, `${level.toUpperCase()}: ${prettyMetric(metric)}`);
 
-  setCaption(
-    series.length
-      ? `Showing ${series.length} points for ${level} / ${prettyMetric(metric)}.`
-      : `No valid numeric data for ${level} / ${prettyMetric(metric)}.`
-  );
+  // Add a helpful caption including y-range so we can sanity-check fast
+  if (series.length) {
+    const yr = d3.extent(series, d => d.value);
+    setCaption(`Showing ${series.length} points for ${level} / ${prettyMetric(metric)}. Value range: ${yr[0]} to ${yr[1]}.`);
+  } else {
+    setCaption(`No valid numeric points for ${level} / ${prettyMetric(metric)}.`);
+  }
 }
 
 // Init
@@ -190,8 +220,6 @@ async function init() {
 
   mountSelectors(levels);
   renderCurrent();
-
-  setCaption(`Loaded ${metrics.length} rows. Use the dropdowns to explore.`);
 }
 
 init().catch(err => {
