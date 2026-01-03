@@ -89,6 +89,27 @@ async function init() {
   metrics = await d3.json("data/metrics_long.json");
   stressors = await d3.json("data/stressors_long.json");
 
+// ---- DEBUG: show what we actually loaded ----
+const levels = Array.from(new Set(metrics.map(d => (d.level ?? "").toString().trim()))).slice(0, 10);
+const metricsNames = Array.from(new Set(metrics.map(d => (d.metric ?? "").toString().trim()))).slice(0, 15);
+
+d3.select("#viz")
+  .append("div")
+  .attr("id", "data-debug")
+  .style("padding", "10px")
+  .style("margin", "10px 0")
+  .style("border", "1px solid #ddd")
+  .style("font-size", "12px")
+  .style("line-height", "1.3")
+  .html(
+    `<strong>Data loaded ✅</strong><br/>
+     rows: ${metrics.length}<br/>
+     sample level values: ${levels.join(", ")}<br/>
+     sample metric values: ${metricsNames.join(", ")}`
+  );
+
+  
+
   // Scrollama wiring
   scroller
     .setup({
