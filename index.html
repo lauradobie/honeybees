@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Honey Bee Colonies: Stability Under Stress</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://unpkg.com/scrollama"></script>
+</head>
+<body>
+
+<header class="hero">
+  <h1>Stability Under Stress</h1>
+  <p>What quarterly data can (and can’t) tell us about U.S. honey bee colonies, 2016–2025.</p>
+</header>
+
+<main class="scrolly">
+  <section class="graphic">
+    <div id="viz"></div>
+    <div class="viz-caption" id="caption"></div>
+  </section>
+
+  <section class="text">
+    <div class="step" data-step="0">
+      <h2>The system is seasonal</h2>
+      <p>Quarterly counts rise and fall through the year. Winter lows can be normal.</p>
+    </div>
+    <div class="step" data-step="1">
+      <h2>Loss and recovery happen together</h2>
+      <p>To understand stability, you must view losses, additions, and renovations at the same time.</p>
+    </div>
+    <div class="step" data-step="2">
+      <h2>Is it getting harder to maintain?</h2>
+      <p>We test whether intervention per loss changes over time.</p>
+    </div>
+    <div class="step" data-step="3">
+      <h2>Stress is multi-factorial</h2>
+      <p>Stressor percentages overlap; they represent reported involvement, not a single cause.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <p>Built with D3 + Scrollama. Data: USDA/NASS (as provided in dataset).</p>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>
