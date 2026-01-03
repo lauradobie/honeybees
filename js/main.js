@@ -55,9 +55,7 @@ function clearViz() {
   g.selectAll("*").remove();
 }
 
-// Nice label for metric strings
 function prettyMetric(m) {
-  // convert snake_case → Title Case-ish
   return (m || "")
     .toString()
     .replaceAll("_", " ")
@@ -74,7 +72,7 @@ function renderLine(series, title) {
       .attr("x", 16)
       .attr("y", 28)
       .attr("font-size", 14)
-      .text("No data found for this view. (Metric/level mismatch)");
+      .text("No data found for this view.");
     return;
   }
 
@@ -118,7 +116,6 @@ function renderLine(series, title) {
 
 // Populate selects based on data
 function mountSelectors(levels) {
-  // Level select
   levelSelect.innerHTML = "";
   levels.forEach(l => {
     const opt = document.createElement("option");
@@ -127,11 +124,9 @@ function mountSelectors(levels) {
     levelSelect.appendChild(opt);
   });
 
-  // default to national if present
   const defaultLevel = levels.includes("national") ? "national" : levels[0];
   levelSelect.value = defaultLevel;
 
-  // Metric select will be populated based on level
   levelSelect.addEventListener("change", () => {
     populateMetricSelect(levelSelect.value);
     renderCurrent();
@@ -157,8 +152,13 @@ function populateMetricSelect(level) {
     metricSelect.appendChild(opt);
   });
 
-  // pick a sensible default if present
-  const preferred = ["quarter_start_colonies", "gross_turnover", "intervention_to_loss", "lost_per_100_start", "loss_pct"];
+  const preferred = [
+    "quarter_start_colonies",
+    "gross_turnover",
+    "intervention_to_loss",
+    "lost_per_100_start",
+    "loss_pct"
+  ];
   const found = preferred.find(p => metricsForLevel.includes(p));
   metricSelect.value = found || metricsForLevel[0] || "";
 }
@@ -169,7 +169,12 @@ function renderCurrent() {
 
   const series = getSeries(level, metric);
   renderLine(series, `${level.toUpperCase()}: ${prettyMetric(metric)}`);
-  setCaption(`Showing ${series.length} points for ${level} / ${prettyMetric(metric)}.`);
+
+  setCaption(
+    series.length
+      ? `Showing ${series.length} points for ${level} / ${prettyMetric(metric)}.`
+      : `No valid numeric data for ${level} / ${prettyMetric(metric)}.`
+  );
 }
 
 // Init
