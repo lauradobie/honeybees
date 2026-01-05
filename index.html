@@ -2,76 +2,84 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Stability Under Stress</title>
-
-  <link rel="stylesheet" href="css/styles.css" />
-
-  <!-- Libraries -->
-  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Parallax Scroll Demo (GSAP)</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
-
 <body>
-  <header class="hero">
-    <h1>Stability Under Stress</h1>
-    <p class="dek">
-      What quarterly data can (and can’t) tell us about U.S. honey bee colonies, 2016–2025.
-    </p>
+  <header class="topbar">
+    <div class="logo">PARALLAX</div>
+    <nav class="nav">
+      <a href="#scene-1">Scene 1</a>
+      <a href="#scene-2">Scene 2</a>
+      <a href="#scene-3">Scene 3</a>
+    </nav>
   </header>
 
-  <main class="story">
-    <section class="chapter">
-      <h2>What this data measures</h2>
-      <p>
-        This dataset tracks honey bee colonies quarterly. Colonies naturally expand and contract across seasons,
-        and beekeepers actively manage them through replacements and renovations. The goal here is to show
-        what the data can prove: seasonal rhythms, turnover, and how much intervention is required to maintain colonies.
-      </p>
-    </section>
+  <!-- Scene 1: pinned hero with layered parallax + text reveal -->
+  <section id="scene-1" class="scene scene--hero">
+    <div class="layer layer--bg"></div>
+    <div class="layer layer--mid"></div>
+    <div class="layer layer--fg"></div>
 
-    <section class="vizwrap">
-      <div class="vizbar">
-        <div class="vizbar-left">
-          <div class="label">View</div>
-          <select id="levelSelect" aria-label="Choose geography level"></select>
+    <div class="hero-content">
+      <h1 class="headline">Scroll to Animate</h1>
+      <p class="subhead">Pinned hero + layered parallax + reveal transitions.</p>
+      <div class="chips">
+        <span class="chip">parallax</span>
+        <span class="chip">pin</span>
+        <span class="chip">scrub</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Scene 2: cards fly in + stagger + depth -->
+  <section id="scene-2" class="scene scene--cards">
+    <div class="content">
+      <h2 class="section-title">Cards fly in & stagger</h2>
+      <p class="section-copy">Elements move onto screen with different easing and depth.</p>
+      <div class="card-grid">
+        <article class="card">A</article>
+        <article class="card">B</article>
+        <article class="card">C</article>
+        <article class="card">D</article>
+        <article class="card">E</article>
+        <article class="card">F</article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Scene 3: horizontal “gallery” controlled by vertical scroll -->
+  <section id="scene-3" class="scene scene--hscroll">
+    <div class="hscroll-pin">
+      <div class="hscroll-track">
+        <div class="panel panel--1">
+          <h3>Panel 1</h3>
+          <p>Vertical scroll drives horizontal motion.</p>
         </div>
-
-        <div class="vizbar-right">
-          <div class="label">Metric</div>
-          <select id="metricSelect" aria-label="Choose metric"></select>
+        <div class="panel panel--2">
+          <h3>Panel 2</h3>
+          <p>Great for “vucko-ish” sequences.</p>
+        </div>
+        <div class="panel panel--3">
+          <h3>Panel 3</h3>
+          <p>Add images, video, type, etc.</p>
+        </div>
+        <div class="panel panel--4">
+          <h3>Panel 4</h3>
+          <p>Snap, inertia, or custom easing.</p>
         </div>
       </div>
-
-      <div id="viz"></div>
-      <div class="viz-caption" id="caption"></div>
-    </section>
-
-    <section class="chapter">
-      <h2>How to read it</h2>
-      <p>
-        A stable total does not necessarily mean the system is effortless. The most informative views compare
-        loss and recovery measures over time, and normalize by starting colonies to compare across seasons.
-      </p>
-      <ul>
-        <li><strong>Seasonality:</strong> quarterly starting colonies can rise and fall naturally.</li>
-        <li><strong>Turnover:</strong> losses, additions, and renovations can all be high at the same time.</li>
-        <li><strong>Harder to maintain:</strong> intervention-per-loss can rise even if totals look stable.</li>
-      </ul>
-    </section>
-
-    <section class="chapter">
-      <h2>Next</h2>
-      <p>
-        Once we confirm the metrics behave correctly, we’ll wire the story steps so the chart transitions automatically
-        as you scroll (parallax/scrollytelling). For now, use the dropdowns to explore and validate the data.
-      </p>
-    </section>
-  </main>
+    </div>
+  </section>
 
   <footer class="footer">
-    <p>Built with D3. Data provided in the project CSV exports.</p>
+    <p>End of demo.</p>
   </footer>
 
-  <script src="js/main.js"></script>
+  <!-- GSAP (CDN) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
