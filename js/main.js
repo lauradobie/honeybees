@@ -28,3 +28,5 @@ function updateProgress(){
 window.addEventListener("scroll", updateProgress, { passive: true });
 window.addEventListener("resize", updateProgress);
 updateProgress();
+
+console.log("✅ main.js is running");
