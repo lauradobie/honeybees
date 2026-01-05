@@ -30,3 +30,6 @@ window.addEventListener("resize", updateProgress);
 updateProgress();
 
 console.log("✅ main.js is running");
+console.log("gsap:", window.gsap);
+console.log("ScrollTrigger:", window.ScrollTrigger);
+
